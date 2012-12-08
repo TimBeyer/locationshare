@@ -36,9 +36,38 @@ app.get('/socket.io/socket.io.js', function(req, res) {
 var io = require('socket.io').listen(3030);
 
 io.sockets.on('connection', function (socket) {
-    socket.emit('location_update', { hello: 'world' });
-    socket.on('my other event', function (data) {
+    //socket.emit('change:latlng', { hello: 'world' });
+
+    // Save a unique ID for this client
+    socket.set('clientId', _.uniqueId('client_'), function(){
+        socket.get('clientId', function(err, clientId){
+            socket.emit('change:clientId', clientId);
+            socket.get('room', function(err, room){
+                socket.broadcast.to(room).emit('add:client', clientId);
+                //io.sockets.in(room).broadcast.send(); 
+            });
+
+        });
+    });
+
+
+    socket.on('change:room', function (room) {
+        console.log(room);
+        socket.join(room);
+        socket.set('room', room);
+    });
+
+    socket.on('change:latlng', function (data) {
         console.log(data);
+        socket.get('clientId', function(err, clientId){
+            var dataWithClientId = _.extend(data, {
+                clientId: clientId
+            });
+            socket.get('room', function(err, room){
+                socket.broadcast.to(room).emit('change:latlng', dataWithClientId);
+                //io.sockets.in(room).broadcast.send(); 
+            });
+        });
     });
 });
 
@@ -59,13 +88,13 @@ var showMap = function(req, res){
 var createMap = function(req, res){
     // Create unique id for map channel
     utils.getUUID(function(uuid){
-        res.redirect("/map/" + uuid);
+        res.redirect("/map#" + uuid);
     });
 }
 
 var routes = {
     '/': createMap,
-    '/map/:id' : showMap
+    '/map' : showMap
 };
 
 _.each(routes, function(handler, route){
