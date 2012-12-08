@@ -34,13 +34,17 @@ window.locationshare = (function setUpViews (module) {
 			},
 
 			render: function (changes) {
-				var mapsLatLng = locationshare.utils.mapsLatLng(latlng);
-				map.setCenter(mapsLatLng);
-				myPositionMarker = new google.maps.Marker({
-					position: mapsLatLng,
-					map: map,
-					animation: google.maps.Animation.DROP,
-					title: 'Your position'
+				_.each(clients, function(client){
+					var position = client.get('position')
+					var mapsLatLng = locationshare.utils.mapsLatLng(position);
+					this.map.setCenter(mapsLatLng);
+					/*myPositionMarker = new google.maps.Marker({
+						position: mapsLatLng,
+						map: this.map,
+						animation: google.maps.Animation.DROP,
+						title: 'Your position'
+					});*/
+
 				});
 
 			}

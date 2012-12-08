@@ -41,16 +41,18 @@
 			console.log(data);
 		});
 
-		socket.on('change:clientId', function (clientId) {
-			console.log("New clientId: ", clientId);
-			myClientId = clientId;
+		socket.on('change:client', function (serializedClient) {
+			console.log("Change clientId: ", serializedClient);
+			
+			var client = this.clients.get(serializedClient.id);
+			
+			// Update with client's attributes
+			client.set(serializedClient);
 		});
 
-		socket.on('add:client', function (clientId) {
+		socket.on('add:client', function (client) {
 			console.log("New client connected: ", clientId);
-			clients[clientId] = {
-				clientId: clientId
-			}
+			clients.add(new locationshare.models.Client(client));
 		});
 
 		/*

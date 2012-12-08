@@ -41,12 +41,12 @@ io.sockets.on('connection', function (socket) {
     // Save a unique ID for this client
     socket.set('clientId', _.uniqueId('client_'), function(){
         socket.get('clientId', function(err, clientId){
-            socket.emit('change:clientId', clientId);
             socket.get('room', function(err, room){
-                socket.broadcast.to(room).emit('add:client', clientId);
+                socket.broadcast.to(room).emit('add:client', {
+                    id: clientId
+                });
                 //io.sockets.in(room).broadcast.send(); 
             });
-
         });
     });
 
