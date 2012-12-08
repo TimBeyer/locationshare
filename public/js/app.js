@@ -1,24 +1,5 @@
 
 (function(){
-	/*
-		Events interface structure:
-
-		Backbone-like event name structure
-		change:clients:12 -> client {
-			changed attributes
-		}
-
-		add:clients:14 -> client {
-			new client atributes
-		}
-
-		change:clients:12:location -> locationData for: id=12 {
-			lat
-			lon
-		} 
-
-		
-	 */
 
 	$(function () {
 		var myClientId
@@ -40,10 +21,6 @@
 
 		// Join the map channel
 		socket.emit('change:room', locationshare.utils.getRoom());;
-
-		socket.on('change:latlng', function (data) {
-			console.log(data);
-		});
 
 		socket.on('change:client', function (serializedClient) {
 			console.log("Change client: ", serializedClient);
@@ -92,11 +69,11 @@
 		locationshare.eventBus.on("available:localClient", function () {
 			// Update server
 			locationshare.eventBus.on("change:device:position", function (position) {
-				console.log("Change device position", position);
 				var localClient = clients.getLocalClient();
 				localClient.set("position", position);
 				var serializedClient = localClient.toJSON();
-				
+
+				console.log("Change device position", position, serializedClient);
 				socket.emit("change:client", serializedClient);
 			});
 

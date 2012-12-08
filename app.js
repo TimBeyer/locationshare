@@ -93,6 +93,12 @@ io.sockets.on('connection', function (socket) {
             console.log('Client disconnected', err, clientId);
             socket.get('room', function (err, room) {
                 console.log('Notifying room of disonnection', room);
+                var clientModel = connectedClients.get(clientId);
+
+                connectedClients.remove(clientModel);
+                clientsByRooms[room].remove(clientModel);
+
+
                 io.sockets.in(room).emit('remove:client', {
                     id: clientId
                 });
@@ -106,46 +112,48 @@ io.sockets.on('connection', function (socket) {
     socket.on('change:room', function (room) {
         console.log("Joined room", room);
         socket.join(room);
-        socket.set('room', room);
+        socket.set('room', room, function(){
+            socket.get('clientId', function (err, clientId) {
+                // Check if a collection for this room exists and if not
+                // add one and add this client
+                if(!clientsByRooms[room]){
+                    clientsByRooms[room] = new Clients();
+                }
+                var clientsInRoom = clientsByRooms[room];
 
-        socket.get('clientId', function (err, clientId) {
-            // Check if a collection for this room exists and if not
-            // add one and add this client
-            if(!clientsByRooms[room]){
-                clientsByRooms[room] = new Clients();
-            }
-            var clientsInRoom = clientsByRooms[room];
+                var clientModel = connectedClients.get(clientId);
+                clientsInRoom.add(clientModel);
 
-            var clientModel = connectedClients.get(clientId);
-            clientsInRoom.add(clientModel);
+                var serializedClient = clientModel.toJSON();
 
-            var serializedClient = clientModel.toJSON();
-
-            // Send to other clients in room
-            socket.broadcast.to(room).emit('add:client', _.extend(serializedClient, {
-                isLocalClient: false
-            }));
-            
-
-            // Send to this client
-            socket.emit('add:client', _.extend(serializedClient, {
-                isLocalClient: true
-            }));
-
-            // Send list of other clients in the room to the client
-            var otherClients = clientsInRoom.reject(function(client){
-                client.get('id') == clientId;
-            });
-
-            _.each(otherClients, function(client){
-                var otherClient = client.toJSON();
-                // Send to this client
-                socket.emit('add:client', _.extend(otherClient, {
+                // Send to other clients in room
+                socket.broadcast.to(room).emit('add:client', _.extend(serializedClient, {
                     isLocalClient: false
                 }));
-            })
+                
 
+                // Send to this client
+                //socket.emit('add:client', _.extend(serializedClient, {
+                //    isLocalClient: true
+                //}));
+
+                // Send list of other clients in the room to the client
+                var otherClients = clientsInRoom.reject(function(client){
+                    client.get('id') == clientId;
+                });
+
+                _.each(otherClients, function(client){
+                    var otherClient = client.toJSON();
+                    // Send to this client
+                    socket.emit('add:client', _.extend(otherClient, {
+                        isLocalClient: false
+                    }));
+                })
+
+            });
+            
         });
+
     });
 
     socket.on('change:client', function (client) {
@@ -160,7 +168,10 @@ io.sockets.on('connection', function (socket) {
                     // When the client updates are sent out, remove the isLocalClient attribute
                     // to not override it in the clients
                     if(!err){
-                        io.sockets.in(room).emit('change:client', _.omit(client, 'isLocalClient')); 
+                        var serializedClient = _.omit(client, 'isLocalClient');
+                        var clientModel = connectedClients.get(client.id);
+                        clientModel.set(serializedClient);
+                        io.sockets.in(room).emit('change:client', serializedClient); 
                     }
                     console.log("client updated", client);
                 });
