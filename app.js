@@ -88,6 +88,8 @@ var showMap = function(req, res){
 var createMap = function(req, res){
     // Create unique id for map channel
     utils.getUUID(function(uuid){
+        //!TODO Testing Room
+        uuid = "test";
         res.redirect("/map#" + uuid);
     });
 }
