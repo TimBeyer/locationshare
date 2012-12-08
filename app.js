@@ -33,7 +33,9 @@ app.get('/socket.io/socket.io.js', function(req, res) {
     });
 });
 
-var io = require('socket.io').listen(3030);
+var io = require('socket.io').listen(3030, {
+    transports: ['websocket']
+});
 
 io.sockets.on('connection', function (socket) {
     //socket.emit('change:latlng', { hello: 'world' });
@@ -42,14 +44,43 @@ io.sockets.on('connection', function (socket) {
     socket.set('clientId', _.uniqueId('client_'), function(){
         socket.get('clientId', function(err, clientId){
             socket.get('room', function(err, room){
-                socket.broadcast.to(room).emit('add:client', {
-                    id: clientId
-                });
-                //io.sockets.in(room).broadcast.send(); 
+                var clientData = {
+                    id: clientId,
+                    position: {
+                        lat: -25.363882,
+                        lng: 131.044922
+                    },
+                    isLocalClient: false
+                };
+                // Send to other clients in room
+                socket.broadcast.to(room).emit('add:client', clientData);
+
+                // Send to this client
+                socket.emit('add:client', _.extend(clientData, {
+                    isLocalClient: true
+                }));
             });
         });
     });
 
+    socket.on('disconnect:client', function () {
+        // Forcefully disconnect client when client
+        // closes or reloads page
+        console.log('Client disconnting');
+        socket.disconnect();
+    });
+
+    socket.on('disconnect', function () {
+        socket.get('clientId', function(err, clientId){
+            console.log('Client disconnected', err, clientId);
+            socket.get('room', function(err, room){
+                console.log('Notifying room of disonnection', room);
+                io.sockets.in(room).emit('remove:client', {
+                    id: clientId
+                });
+            });
+        });
+    });
 
     socket.on('change:room', function (room) {
         console.log(room);
@@ -57,16 +88,24 @@ io.sockets.on('connection', function (socket) {
         socket.set('room', room);
     });
 
-    socket.on('change:latlng', function (data) {
-        console.log(data);
-        socket.get('clientId', function(err, clientId){
-            var dataWithClientId = _.extend(data, {
-                clientId: clientId
-            });
-            socket.get('room', function(err, room){
-                socket.broadcast.to(room).emit('change:latlng', dataWithClientId);
-                //io.sockets.in(room).broadcast.send(); 
-            });
+    socket.on('change:client', function (client) {
+        console.log(client);
+        socket.get('clientId', function(err, clientId) {
+
+            // Only do something if the client
+            // has the right to do so
+            if (client.id == clientId) {
+                socket.get('room', function(err, room){
+                    //socket.broadcast.to(room).emit('change:latlng', dataWithClientId);
+                    
+                    // When the client updates are sent out, remove the isLocalClient attribute
+                    // to not override it in the clients
+                    io.sockets.in(room).emit('change:client', _.omit(client, 'isLocalClient')); 
+                });
+            }
+            else { 
+                console.log("The client has no right to update", client);
+            }
         });
     });
 });

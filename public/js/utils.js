@@ -70,7 +70,7 @@ window.locationshare = (function setUpUtils (module) {
 					lat: lat, 
 					lng: lng 
 				}
-				module.eventBus.trigger("change:latlng", latlng);
+				module.eventBus.trigger("device:change:latlng", latlng);
 			},1000);
 		}
 	};

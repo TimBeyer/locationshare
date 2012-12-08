@@ -7,6 +7,12 @@ window.locationshare = (function setUpCollections (module) {
 			model: locationshare.models.Client,
 			initialize: function () {
 
+			},
+
+			getLocalClient: function () {
+				return this.where({
+					'isLocalClient': true
+				})[0];
 			}
 		})
 	};
