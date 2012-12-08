@@ -62,16 +62,18 @@ window.locationshare = (function setUpUtils (module) {
 			createPositionRequest("watchPosition", updateCB, errorCB);
 		},
 
-		mockLocationUpdates: function () {
+		mockLocationUpdates: function (client) {
 			setInterval(function(){
-				var lat = myPosition.lat + Math.random() * 0.00001;
-				var lng = myPosition.lng + Math.random() * 0.00001;
+				var position = client.get('position');
+				var lat = position.lat + (Math.random() - 0.5) * 0.00001;
+				var lng = position.lng + (Math.random() - 0.5) * 0.00001;
 				var latlng = { 
 					lat: lat, 
 					lng: lng 
 				}
-				module.eventBus.trigger("device:change:latlng", latlng);
-			},1000);
+				console.log("New mock location", latlng);
+				module.eventBus.trigger("change:device:position", latlng);
+			}, 5000);
 		}
 	};
 	return module;

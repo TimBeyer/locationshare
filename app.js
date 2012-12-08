@@ -2,6 +2,7 @@ var config = require('./config'),
     http = require('http'),
     less = require("less"),
     _ = require("underscore"),
+    Backbone = require("backbone"),
     utils = require("./utils");
 
 var app = config.app;
@@ -33,13 +34,26 @@ app.get('/socket.io/socket.io.js', function(req, res) {
     });
 });
 
+var Client = Backbone.Model.extend({
+
+});
+
+var Clients = Backbone.Collection.extend({
+    model: client
+});
+
+var connectedClients = new Clients();
+
 var io = require('socket.io').listen(3030, {
     transports: ['websocket']
 });
 
-io.sockets.on('connection', function (socket) {
-    //socket.emit('change:latlng', { hello: 'world' });
+var totalClients = 0;
 
+io.sockets.on('connection', function (socket) {
+    totalClients += 1;
+
+    console.log("New client connected. Total Clients: ", totalClients);
     // Save a unique ID for this client
     socket.set('clientId', _.uniqueId('client_'), function(){
         socket.get('clientId', function(err, clientId){
@@ -80,16 +94,19 @@ io.sockets.on('connection', function (socket) {
                 });
             });
         });
+        totalClients =- 1;
+        console.log("Client disconnected. Total Clients: ", totalClients);
+
     });
 
     socket.on('change:room', function (room) {
-        console.log(room);
+        console.log("Joined room", room);
         socket.join(room);
         socket.set('room', room);
     });
 
     socket.on('change:client', function (client) {
-        console.log(client);
+        console.log("client updated" ,client);
         socket.get('clientId', function(err, clientId) {
 
             // Only do something if the client
@@ -100,7 +117,9 @@ io.sockets.on('connection', function (socket) {
                     
                     // When the client updates are sent out, remove the isLocalClient attribute
                     // to not override it in the clients
-                    io.sockets.in(room).emit('change:client', _.omit(client, 'isLocalClient')); 
+                    if(!err){
+                        io.sockets.in(room).emit('change:client', _.omit(client, 'isLocalClient')); 
+                    }
                 });
             }
             else { 

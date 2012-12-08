@@ -74,32 +74,35 @@
 		google.maps.event.addListenerOnce(mapView.map, 'tilesloaded', function(){
 
 			// Get fist time position
-			locationshare.utils.getCurrentLatLng(function(latlng){
-				console.log("device: Initialized position at: ", latlng);
-				locationshare.eventBus.trigger("change:device:latlng", latlng);
+			locationshare.utils.getCurrentLatLng(function(position){
+				console.log("device: Initialized position at: ", position);
+				locationshare.eventBus.trigger("change:device:position", position);
 
 			});
 
 			// Monitor your position and send it to the server
-			locationshare.utils.watchLatLng(function(latlng){
-				console.log("device: Triggering updated position ", latlng);
-				locationshare.eventBus.trigger("change:device:latlng", latlng);
+			locationshare.utils.watchLatLng(function(position){
+				console.log("device: Triggering updated position ", position);
+				locationshare.eventBus.trigger("change:device:position", position);
 
 			});
 
-
-			// Mock location updates
-			// locationshare.utils.mockLocationUpdates();
 		});
 		
 		locationshare.eventBus.on("available:localClient", function () {
 			// Update server
-			locationshare.eventBus.on("change:device:latlng", function(latlng){
-				myPosition = latlng;
+			locationshare.eventBus.on("change:device:position", function (position) {
+				console.log("Change device position", position);
 				var localClient = clients.getLocalClient();
-				localClient.set("position", latlng);
-				socket.emit("change:client", localClient.toJSON());
+				localClient.set("position", position);
+				var serializedClient = localClient.toJSON();
+				
+				socket.emit("change:client", serializedClient);
 			});
+
+			var localClient = clients.getLocalClient();
+			// Mock location updates
+			locationshare.utils.mockLocationUpdates(localClient);
 
 		});
 
