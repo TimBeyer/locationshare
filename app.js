@@ -39,10 +39,11 @@ var Client = Backbone.Model.extend({
 });
 
 var Clients = Backbone.Collection.extend({
-    model: client
+    model: Client
 });
 
 var connectedClients = new Clients();
+var clientsByRooms = {};
 
 var io = require('socket.io').listen(3030, {
     transports: ['websocket']
@@ -54,26 +55,29 @@ io.sockets.on('connection', function (socket) {
     totalClients += 1;
 
     console.log("New client connected. Total Clients: ", totalClients);
-    // Save a unique ID for this client
-    socket.set('clientId', _.uniqueId('client_'), function(){
-        socket.get('clientId', function(err, clientId){
-            socket.get('room', function(err, room){
-                var clientData = {
-                    id: clientId,
-                    position: {
-                        lat: -25.363882,
-                        lng: 131.044922
-                    },
-                    isLocalClient: false
-                };
-                // Send to other clients in room
-                socket.broadcast.to(room).emit('add:client', clientData);
 
-                // Send to this client
-                socket.emit('add:client', _.extend(clientData, {
-                    isLocalClient: true
-                }));
-            });
+    // Save a unique ID for this client
+    socket.set('clientId', _.uniqueId('client_'), function () {
+        socket.get('clientId', function (err, clientId) {
+
+            var clientData = {
+                id: clientId,
+                position: {
+                    lat: -25.363882,
+                    lng: 131.044922
+                }
+            };
+
+            // Add new client to the collection
+            var client = new Client(clientData);
+            connectedClients.add(client);
+
+            // Update the client with its new data
+            var serializedClient = client.toJSON();
+            socket.emit('add:client', _.extend(serializedClient, {
+                isLocalClient: true
+            }));
+
         });
     });
 
@@ -85,9 +89,9 @@ io.sockets.on('connection', function (socket) {
     });
 
     socket.on('disconnect', function () {
-        socket.get('clientId', function(err, clientId){
+        socket.get('clientId', function (err, clientId) {
             console.log('Client disconnected', err, clientId);
-            socket.get('room', function(err, room){
+            socket.get('room', function (err, room) {
                 console.log('Notifying room of disonnection', room);
                 io.sockets.in(room).emit('remove:client', {
                     id: clientId
@@ -103,10 +107,48 @@ io.sockets.on('connection', function (socket) {
         console.log("Joined room", room);
         socket.join(room);
         socket.set('room', room);
+
+        socket.get('clientId', function (err, clientId) {
+            // Check if a collection for this room exists and if not
+            // add one and add this client
+            if(!clientsByRooms[room]){
+                clientsByRooms[room] = new Clients();
+            }
+            var clientsInRoom = clientsByRooms[room];
+
+            var clientModel = connectedClients.get(clientId);
+            clientsInRoom.add(clientModel);
+
+            var serializedClient = clientModel.toJSON();
+
+            // Send to other clients in room
+            socket.broadcast.to(room).emit('add:client', _.extend(serializedClient, {
+                isLocalClient: false
+            }));
+            
+
+            // Send to this client
+            socket.emit('add:client', _.extend(serializedClient, {
+                isLocalClient: true
+            }));
+
+            // Send list of other clients in the room to the client
+            var otherClients = clientsInRoom.reject(function(client){
+                client.get('id') == clientId;
+            });
+
+            _.each(otherClients, function(client){
+                var otherClient = client.toJSON();
+                // Send to this client
+                socket.emit('add:client', _.extend(otherClient, {
+                    isLocalClient: false
+                }));
+            })
+
+        });
     });
 
     socket.on('change:client', function (client) {
-        console.log("client updated" ,client);
         socket.get('clientId', function(err, clientId) {
 
             // Only do something if the client
@@ -120,10 +162,11 @@ io.sockets.on('connection', function (socket) {
                     if(!err){
                         io.sockets.in(room).emit('change:client', _.omit(client, 'isLocalClient')); 
                     }
+                    console.log("client updated", client);
                 });
             }
             else { 
-                console.log("The client has no right to update", client);
+                console.log("The client has no right to update", clientId, client);
             }
         });
     });
