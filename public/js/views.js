@@ -19,6 +19,7 @@ window.locationshare = (function setUpViews (module) {
 				this.clients = options.clients;
 				this.clients.on('change', this.clientChanged, this);
 				this.clients.on('add', this.clientAdded, this);
+				this.clients.on('remove', this.clientRemoved, this);
 
 				_.bindAll(this, 'render', 'clientChanged', 'clientAdded', 'clientRemoved');
 
@@ -45,7 +46,12 @@ window.locationshare = (function setUpViews (module) {
 			},
 
 			clientRemoved: function (client, clients, options) {
-				
+				var id = client.get('id');
+				var marker = this.positionMarkers[id];
+				marker.setMap(null);
+				delete this.positionMarkers[id];
+
+				this.render();
 			},
 
 			render: function () {
